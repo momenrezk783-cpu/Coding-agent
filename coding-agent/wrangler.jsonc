@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "coding-agent",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "upload_source_maps": true,
+
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS"
+  },
+
+  "ai": {
+    "binding": "AI"
+  },
+
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CODING_AGENT",
+        "class_name": "CodingAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["CodingAgent"]
+    }
+  ],
+
+  "services": [
+    {
+      "binding": "VOICE_AGENT",
+      "service": "mizan-voice-agent"
+    }
+  ],
+
+  "worker_loaders": [
+    {
+      "binding": "LOADER"
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  },
+
+  "placement": {
+    "mode": "smart"
+  }
+}
