@@ -1,0 +1,50 @@
+name: Deploy Coding Agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "coding-agent/**"
+      - ".github/workflows/deploy-coding-agent.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: coding-agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: coding-agent/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Build (worker + UI)
+        run: npm run build
+
+      # Versions uploaded outside this pipeline have dropped the secrets before,
+      # so the worker's secrets are re-asserted on every deploy.
+      - name: Sync worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CODING_AGENT_AUTH_TOKEN: ${{ secrets.CODING_AGENT_AUTH_TOKEN }}
+        run: |
+          printf '%s' "$CF_API_KEY" | npx wrangler secret put CF_API_KEY --name coding-agent
+          printf '%s' "$CODING_AGENT_AUTH_TOKEN" | npx wrangler secret put CODING_AGENT_AUTH_TOKEN --name coding-agent
+
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
