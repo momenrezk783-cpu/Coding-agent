@@ -35,6 +35,41 @@ const FALLBACK_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const PRIMARY_TIMEOUT_MS = 5_000;  // 5s — fail fast on the primary model
 const FALLBACK_TIMEOUT_MS = 3_000; // 3s — even shorter for the fallback
 
+// Workers AI models return either { response }, { result: { response } } or an
+// OpenAI-style { choices: [{ message: { content, tool_calls } }] }. Normalize
+// all three; tool arguments are always returned as a JSON string.
+function normalizeAiResult(result: unknown): {
+  response: string;
+  tool_calls?: Array<{ function: { name: string; arguments: string } }>;
+} {
+  const r = (result ?? {}) as Record<string, unknown>;
+  const nested = (r.result ?? {}) as Record<string, unknown>;
+  const choice = (Array.isArray(r.choices) ? r.choices[0] : undefined) as
+    | { message?: { content?: string | null; tool_calls?: unknown[] }; text?: string }
+    | undefined;
+  const text =
+    (typeof r.response === "string" && r.response) ||
+    (typeof nested.response === "string" && nested.response) ||
+    (typeof choice?.message?.content === "string" && choice.message.content) ||
+    (typeof choice?.text === "string" && choice.text) ||
+    "";
+  const rawCalls = (Array.isArray(r.tool_calls) ? r.tool_calls : undefined) ??
+    (Array.isArray(choice?.message?.tool_calls) ? choice?.message?.tool_calls : undefined) ??
+    [];
+  const tool_calls = (rawCalls as Array<{ function?: { name?: string; arguments?: unknown } }>)
+    .filter((c) => c?.function?.name)
+    .map((c) => ({
+      function: {
+        name: String(c.function!.name),
+        arguments:
+          typeof c.function!.arguments === "string"
+            ? c.function!.arguments
+            : JSON.stringify(c.function!.arguments ?? {}),
+      },
+    }));
+  return { response: text.trim(), tool_calls: tool_calls.length ? tool_calls : undefined };
+}
+
 export class CodingAgent extends Agent<Env, AgentState> {
   initialState: AgentState = {
     messages: [],
@@ -51,17 +86,18 @@ export class CodingAgent extends Agent<Env, AgentState> {
     messages: Array<{ role: string; content: string }>,
     options?: { tools?: unknown[] }
   ): Promise<{ response: string; tool_calls?: unknown[]; usedFallback: boolean }> {
-    // Try primary model
+    // Try primary model. A result with neither text nor tool calls counts as a
+    // failure so the fallback runs instead of replying "I'm not sure".
     try {
       const result = await this.runWithTimeout(
         this.env.AI.run(PRIMARY_MODEL, { messages, ...(options?.tools ? { tools: options.tools } : {}) }),
         PRIMARY_TIMEOUT_MS
       );
-      return {
-        response: (result as { response?: string }).response || "",
-        tool_calls: (result as { tool_calls?: unknown[] }).tool_calls,
-        usedFallback: false,
-      };
+      const norm = normalizeAiResult(result);
+      if (!norm.response && !(norm.tool_calls && norm.tool_calls.length)) {
+        throw new Error("primary model returned an empty response");
+      }
+      return { response: norm.response, tool_calls: norm.tool_calls, usedFallback: false };
     } catch (primaryError) {
       console.log(`Primary model (${PRIMARY_MODEL}) failed:`, (primaryError as Error).message);
       console.log(`Falling back to ${FALLBACK_MODEL}...`);
@@ -72,8 +108,9 @@ export class CodingAgent extends Agent<Env, AgentState> {
           this.env.AI.run(FALLBACK_MODEL, { messages }),
           FALLBACK_TIMEOUT_MS
         );
+        const norm = normalizeAiResult(result);
         return {
-          response: (result as { response?: string }).response || `Error: primary model failed and fallback returned no response.`,
+          response: norm.response || `Error: primary model failed and fallback returned no response.`,
           usedFallback: true,
         };
       } catch (fallbackError) {
@@ -112,8 +149,11 @@ export class CodingAgent extends Agent<Env, AgentState> {
     connection.send(JSON.stringify({ type: "state", state: this.state }));
   }
 
-  async onMessage(connection: WebSocket, message: ArrayBuffer) {
-    const text = new TextDecoder().decode(message);
+  async onMessage(connection: WebSocket, message: string | ArrayBuffer) {
+    // The UI sends text frames; TextDecoder only accepts binary, so decoding a
+    // string threw and the agent silently never replied.
+    const text =
+      typeof message === "string" ? message : new TextDecoder().decode(message);
     let parsed: { type: string; content?: string };
 
     try {

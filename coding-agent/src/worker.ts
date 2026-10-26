@@ -29,12 +29,10 @@ export default {
       }
     }
 
-    // Route WebSocket and API requests to the Coding Agent Durable Object
-    const agentResponse = await routeAgentRequest(
-      request,
-      env.CODING_AGENT,
-      "coding-agent"
-    );
+    // Route WebSocket and API requests to the Coding Agent Durable Object.
+    // routeAgentRequest needs the full env (it discovers DO bindings from it);
+    // passing env.CODING_AGENT made every agent request return 400 "Invalid request".
+    const agentResponse = await routeAgentRequest(request, env);
 
     if (agentResponse) {
       return agentResponse;

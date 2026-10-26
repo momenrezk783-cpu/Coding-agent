@@ -33,7 +33,7 @@ export default function App() {
       window.prompt("Coding agent auth token") ||
       "";
     if (token) localStorage.setItem("coding_agent_token", token);
-    const wsUrl = `${protocol}//${window.location.host}/agent/coding-agent?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${protocol}//${window.location.host}/agents/coding-agent/main?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
