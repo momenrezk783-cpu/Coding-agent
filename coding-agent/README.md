@@ -19,7 +19,7 @@ A coding agent built on Cloudflare's Agents SDK that can read, edit, and deploy 
 npm install
 ```
 
-### 2. Create the CF_API_TOKEN secret
+### 2. Create the CF_API_KEY secret
 
 You need a Cloudflare API token with Workers edit permissions so the agent can read and deploy Workers:
 
@@ -30,7 +30,7 @@ You need a Cloudflare API token with Workers edit permissions so the agent can r
 3. Set it as a secret:
 
 ```sh
-npx wrangler secret put CF_API_TOKEN
+npx wrangler secret put CF_API_KEY
 # Paste your token when prompted
 ```
 
@@ -76,7 +76,7 @@ npm run deploy
 │                              └─────────────────────┘  │
 │                                                      │
 │  ┌──────────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │ VOICE_AGENT  │  │ LOADER   │  │ CF_API_TOKEN  │  │
+│  │ VOICE_AGENT  │  │ LOADER   │  │ CF_API_KEY  │  │
 │  │ (svc binding)│  │ (dyn wk) │  │ (secret)      │  │
 │  └──────────────┘  └──────────┘  └───────────────┘  │
 └─────────────────────────────────────────────────────┘
@@ -94,7 +94,7 @@ npm run deploy
 | `CODING_AGENT` | Durable Object | Agent state, SQLite, WebSocket |
 | `VOICE_AGENT` | Service Binding | Call mizan-voice-agent at zero latency |
 | `LOADER` | Worker Loader | Spin up Dynamic Workers for code execution |
-| `CF_API_TOKEN` | Secret | Cloudflare API access for editing Workers |
+| `CF_API_KEY` | Secret | Cloudflare API access for editing Workers |
 | `ASSETS` | Static Assets | Serves Vite-built frontend |
 
 ## Tools Available to the Agent
@@ -111,7 +111,7 @@ npm run deploy
 ## Security Notes
 
 - Dynamic Workers have `globalOutbound: null` — all network access blocked
-- `CF_API_TOKEN` should be scoped to only Workers permissions
+- `CF_API_KEY` should be scoped to only Workers permissions
 - Service bindings only reach Workers you explicitly declare
 - Agent conversation history is stored in the Durable Object's SQLite
 

@@ -5,6 +5,30 @@ export { CodingAgent };
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // Auth gate: everything that reaches the agent (WebSocket or /api/*) must
+    // carry the shared token. Static assets still load without it so the UI
+    // can prompt for the token, but the agent itself is never open.
+    if (
+      url.pathname.startsWith("/agent/") ||
+      url.pathname.startsWith("/agents/") ||
+      url.pathname.startsWith("/api/")
+    ) {
+      const token =
+        request.headers
+          .get("Authorization")
+          ?.replace(/^Bearer\s+/i, "")
+          .trim() ||
+        request.headers.get("X-Auth-Token")?.trim() ||
+        url.searchParams.get("token")?.trim() ||
+        "";
+      const expected = String(env.CODING_AGENT_AUTH_TOKEN || "").trim();
+      if (!expected || token !== expected) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+    }
+
     // Route WebSocket and API requests to the Coding Agent Durable Object
     const agentResponse = await routeAgentRequest(
       request,
@@ -31,7 +55,8 @@ interface Env {
   LOADER: WorkerLoader;
   CODING_AGENT: DurableObjectNamespace;
   ASSETS: Fetcher;
-  CF_API_TOKEN: string;
+  CF_API_KEY: string;
+  CODING_AGENT_AUTH_TOKEN: string;
 }
 
 interface WorkerLoader {

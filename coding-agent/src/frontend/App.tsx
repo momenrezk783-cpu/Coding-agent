@@ -28,7 +28,12 @@ export default function App() {
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/agent/coding-agent`;
+    const token =
+      localStorage.getItem("coding_agent_token") ||
+      window.prompt("Coding agent auth token") ||
+      "";
+    if (token) localStorage.setItem("coding_agent_token", token);
+    const wsUrl = `${protocol}//${window.location.host}/agent/coding-agent?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

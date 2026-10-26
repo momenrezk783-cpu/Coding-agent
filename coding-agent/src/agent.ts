@@ -282,7 +282,7 @@ interface Env {
   LOADER: WorkerLoader;
   CODING_AGENT: DurableObjectNamespace;
   ASSETS: Fetcher;
-  CF_API_TOKEN: string;
+  CF_API_KEY: string;
 }
 
 interface WorkerLoader {

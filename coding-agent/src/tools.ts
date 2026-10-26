@@ -21,7 +21,7 @@ interface Env {
   AI: Ai;
   VOICE_AGENT: Fetcher;
   LOADER: WorkerLoader;
-  CF_API_TOKEN: string;
+  CF_API_KEY: string;
 }
 
 interface WorkerLoader {
@@ -42,7 +42,7 @@ export const tools: Tool[] = [
     },
     execute: async (_args, env) => {
       const res = await fetch(`${CF_API_BASE}/accounts/${getAccountId(env)}/workers/scripts`, {
-        headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` },
+        headers: { Authorization: `Bearer ${env.CF_API_KEY}` },
       });
       const data = await res.json() as { result?: Array<{ id: string; modified_on?: string }> };
       const workers = data.result?.map((w) => `- ${w.id} (modified: ${w.modified_on || "unknown"})`).join("\n") || "No workers found";
@@ -66,7 +66,7 @@ export const tools: Tool[] = [
       const workerName = args.worker_name as string;
       const res = await fetch(
         `${CF_API_BASE}/accounts/${getAccountId(env)}/workers/scripts/${workerName}`,
-        { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
+        { headers: { Authorization: `Bearer ${env.CF_API_KEY}` } }
       );
       const text = await res.text();
       // The API returns multipart/form-data — extract the script
@@ -113,7 +113,7 @@ export const tools: Tool[] = [
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${env.CF_API_TOKEN}`,
+            Authorization: `Bearer ${env.CF_API_KEY}`,
             "Content-Type": `multipart/form-data; boundary=${boundary}`,
           },
           body,
@@ -231,7 +231,7 @@ export const tools: Tool[] = [
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${env.CF_API_TOKEN}`,
+            Authorization: `Bearer ${env.CF_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(query),
